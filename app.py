@@ -11,29 +11,24 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 
 
-MODEL_PATH = "./models/resnet18_gray.pth"
+MODEL_PATH = "./models/resnet18_gray2.pth"
 
 EMOTION_CLASSES = [
-    "anger","angry", "disgust" ,"disgusted", "fear", "fearful", "happy", "neutral",
-    "sad", "surprise", "surprised"
+    # "anger","angry", "disgust" ,"disgusted", "fear", "fearful", "happy", "neutral",
+    # "sad", "surprise", "surprised"
+    "angry","disgusted","fearful", "happy", "neutral",
+    "sad", "surprised"
 ]
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# =========================
-# RESNET18 GRAYSCALE (1-CHANNEL)
-# =========================
+
 class ResNet18Gray(nn.Module):
-    """
-    Giống kiến trúc ResNet18_Gray bạn dùng để train:
-    - conv1: in_channels = 1
-    - fc: số lớp = len(EMOTION_CLASSES)
-    """
+
     def __init__(self, num_classes=7):
         super().__init__()
         self.model = models.resnet18(weights=None)
-        # Chuyển conv1 từ 3 kênh → 1 kênh
         self.model.conv1 = nn.Conv2d(
             1, 64, kernel_size=7, stride=2, padding=3, bias=False
         )
@@ -52,20 +47,14 @@ def load_emotion_model(model_path: str):
     return model
 
 
-# =========================
-# TRANSFORM CHO ẢNH MẶT (GRAYSCALE 1 KÊNH)
-# =========================
 face_transform = transforms.Compose([
-    # Ảnh đã convert("L") ở dưới → 1 kênh
     transforms.Resize((48, 48)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.5], std=[0.5]),
-])
+])          
 
 
-# =========================
-# APP TKINTER
-# =========================
+
 class EmotionApp:
 
     def __init__(self, root):
@@ -74,7 +63,6 @@ class EmotionApp:
         self.root.geometry("1000x700")
         self.root.configure(bg="#ffffff")
 
-        # Load model & detector
         try:
             self.model = load_emotion_model(MODEL_PATH)
         except Exception as e:
@@ -85,14 +73,11 @@ class EmotionApp:
         self.cap = None
         self.is_camera_running = False
 
-        # UI
         self._build_ui()
 
-    # -------------------------
-    # UI LAYOUT (Tone trắng–đỏ)
-    # -------------------------
+
     def _build_ui(self):
-        # Header
+   
         header = tk.Frame(self.root, bg="#ffffff")
         header.pack(side=tk.TOP, fill=tk.X, pady=(10, 0))
 
@@ -114,22 +99,18 @@ class EmotionApp:
         )
         subtitle_label.pack(side=tk.LEFT, padx=10, pady=(6, 0))
 
-        # Content area: left = video, right = info
         content = tk.Frame(self.root, bg="#ffffff")
         content.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=15, pady=10)
 
-        # Video panel
         video_frame = tk.Frame(content, bg="#f5f5f5", bd=1, relief=tk.SOLID)
         video_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
 
         self.video_label = tk.Label(video_frame, bg="#000000")
         self.video_label.pack(fill=tk.BOTH, expand=True)
 
-        # Right panel (info)
         right_panel = tk.Frame(content, bg="#ffffff")
         right_panel.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Buttons
         btn_frame = tk.LabelFrame(
             right_panel,
             text="Chọn chức năng",
@@ -167,7 +148,6 @@ class EmotionApp:
         tk.Button(btn_frame, text="Thoát",
                   command=self.quit_app, **btn_style).grid(row=2, column=0, columnspan=2, padx=5, pady=(5, 10))
 
-        # Status box (device + faces + help text)
         status_box = tk.LabelFrame(
             right_panel,
             text="Thông tin",
@@ -208,9 +188,6 @@ class EmotionApp:
         )
         self.hint_label.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 10))
 
-    # -------------------------
-    # CAMERA CONTROL
-    # -------------------------
     def start_camera(self):
         if self.is_camera_running:
             return
@@ -233,9 +210,6 @@ class EmotionApp:
         self.stop_camera()
         self.root.destroy()
 
-    # -------------------------
-    # LIVE CAMERA LOOP
-    # -------------------------
     def _update_frame(self):
         if not self.is_camera_running or self.cap is None:
             return
@@ -245,7 +219,6 @@ class EmotionApp:
             self.stop_camera()
             return
 
-        # Lật như gương
         frame = cv2.flip(frame, 1)
 
         annotated, faces = self.process_and_draw(frame)
@@ -253,12 +226,8 @@ class EmotionApp:
 
         self.show_frame(annotated)
 
-        # loop 30ms
         self.root.after(30, self._update_frame)
 
-    # -------------------------
-    # UPLOAD IMAGE
-    # -------------------------
     def upload_image(self):
         self.stop_camera()
 
@@ -282,22 +251,14 @@ class EmotionApp:
         if len(faces) == 0:
             messagebox.showinfo("Info", "Không phát hiện khuôn mặt nào trong ảnh này.")
 
-    # -------------------------
-    # CLEAR DISPLAY
-    # -------------------------
     def clear_display(self):
         self.stop_camera()
         self.video_label.config(image="")
         self.face_count_label.config(text="Số khuôn mặt phát hiện: 0")
 
-    # -------------------------
-    # DISPLAY FRAME ON TKINTER
-    # -------------------------
+
     def show_frame(self, frame_bgr):
-        """
-        Hiển thị frame lên label mà không crop mất nội dung.
-        Nếu ảnh nhỏ → không phóng quá lớn (scale <= 1) để tránh nhòe.
-        """
+
         frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         h, w = frame_rgb.shape[:2]
 
@@ -313,16 +274,9 @@ class EmotionApp:
         self.video_label.img_tk = img_tk
         self.video_label.config(image=img_tk)
 
-    # -------------------------
-    # DETECT + DRAW
-    # -------------------------
+
     def process_and_draw(self, frame_bgr):
-        """
-        - Dùng MTCNN detect mặt trên RGB
-        - Crop face, convert sang GRAY
-        - Predict emotion cho từng face
-        - Vẽ bounding box + text (emotion + confidence)
-        """
+
         frame_draw = frame_bgr.copy()
         frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
 
@@ -340,7 +294,6 @@ class EmotionApp:
             x, y = max(0, x), max(0, y)
             x2, y2 = x + w, y + h
 
-            # Clamp to image size
             x2 = min(x2, w_img)
             y2 = min(y2, h_img)
 
@@ -351,33 +304,27 @@ class EmotionApp:
             if face_rgb.size == 0:
                 continue
 
-            # Predict
             emotion, conf = self.predict_emotion(face_rgb)
 
             faces.append((x, y, w, h, emotion, conf))
 
-            # Draw bounding box
-            color = (0, 0, 255)  # BGR: đỏ
+            color = (0, 0, 255) 
             cv2.rectangle(frame_draw, (x, y), (x2, y2), color, 2)
 
-            # Text (emotion + confidence)
             text = f"{emotion} ({conf:.1f}%)"
             (tw, th), baseline = cv2.getTextSize(
                 text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2
             )
 
-            # MẶC ĐỊNH: vẽ phía trên box
             text_x1 = x
             text_y1 = y - th - 6
             text_x2 = x + tw
             text_y2 = y
 
-            # Nếu bị vượt ra khỏi ảnh (y < 0) → vẽ phía dưới box
             if text_y1 < 0:
                 text_y1 = y2 + 6
                 text_y2 = y2 + th + 6
 
-            # Clamp lại một chút cho chắc
             text_y1 = max(0, text_y1)
             text_y2 = min(h_img - 1, text_y2)
 
@@ -403,16 +350,8 @@ class EmotionApp:
 
         return frame_draw, faces
 
-    # -------------------------
-    # EMOTION PREDICTION
-    # -------------------------
     def predict_emotion(self, face_rgb: np.ndarray):
-        """
-        face_rgb: ảnh crop mặt (H,W,3) RGB từ MTCNN
-        - Convert sang GRAY ngay tại đây
-        - Áp dụng transform grayscale 1 kênh
-        """
-        # Convert sang grayscale (PIL Image mode "L")
+
         face_pil = Image.fromarray(face_rgb).convert("L")
 
         img_t = face_transform(face_pil).unsqueeze(0).to(device)
@@ -425,9 +364,6 @@ class EmotionApp:
         return EMOTION_CLASSES[int(idx)], float(conf.item() * 100.0)
 
 
-# =========================
-# MAIN
-# =========================
 if __name__ == "__main__":
     root = tk.Tk()
     app = EmotionApp(root)
